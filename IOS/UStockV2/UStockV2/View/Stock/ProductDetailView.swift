@@ -19,9 +19,8 @@ struct ProductDetailView: View {
     // ViewModel pour gérer les interactions avec l'API
     @StateObject private var stockViewModel = StockViewModel()
     
-    // État pour le test de notification
-    @State private var notificationAuthorized = false
-    @State private var showingPermissionAlert = false
+    // États pour les notifications
+    @State private var showNotificationOptions = false
     @State private var notificationSent = false
     
     // Initialisation avec la quantité actuelle du produit
@@ -57,39 +56,15 @@ struct ProductDetailView: View {
                 nutriScoreView
                     .padding(.vertical, 10)
                 
+                // Badge d'expiration avec couleur dynamique
+                expirationBadge
+                
                 // Contrôle de quantité
                 quantityControlView
                     .padding(.top, 20)
                 
-                // BOUTON DE TEST DE NOTIFICATION
-                Button(action: {
-                    testNotification()
-                }) {
-                    HStack {
-                        Image(systemName: "bell.badge")
-                            .font(.title3)
-                        Text("TESTER NOTIFICATION")
-                            .font(.custom("ChauPhilomeneOne-Regular", size: 20))
-                            .fontWeight(.bold)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.purple)
-                    .foregroundColor(.white)
-                    .cornerRadius(30)
-                    .shadow(radius: 3)
-                }
-                .padding(.horizontal)
-                .padding(.top, 20)
-                
-                // Message de confirmation
-                if notificationSent {
-                    Text("Notification envoyée ! Vérifiez votre centre de notifications dans 5 secondes.")
-                        .font(.footnote)
-                        .foregroundColor(.purple)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
+                // Section notifications
+                notificationSection
                 
                 Spacer()
                 
@@ -98,7 +73,7 @@ struct ProductDetailView: View {
                     // Boutons Jeté/Consommé
                     HStack(spacing: 0) {
                         Button(action: {
-                            showDiscardPopup()  // Appel à la nouvelle méthode
+                            showDiscardPopup()
                         }) {
                             HStack {
                                 Image(systemName: "trash")
@@ -114,7 +89,7 @@ struct ProductDetailView: View {
                         }
                         
                         Button(action: {
-                            showConsumePopup()  // Appel à la nouvelle méthode
+                            showConsumePopup()
                         }) {
                             HStack {
                                 Image(systemName: "fork.knife")
@@ -163,12 +138,6 @@ struct ProductDetailView: View {
         }
         .navigationTitle("Détails du produit")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarItems(trailing: Button(action: {
-            // Action pour le bouton d'engrenage (paramètres)
-        }) {
-            Image(systemName: "gearshape.fill")
-                .font(.title2)
-        })
         .alert("Supprimer le produit", isPresented: $showDeleteConfirmation) {
             Button("Annuler", role: .cancel) {}
             Button("Supprimer", role: .destructive) {
@@ -189,120 +158,13 @@ struct ProductDetailView: View {
         } message: {
             Text(stockViewModel.errorMessage ?? "Une erreur est survenue")
         }
-        .alert("Autorisation de notification requise", isPresented: $showingPermissionAlert) {
-            Button("Annuler", role: .cancel) {}
-            Button("Ouvrir les Réglages") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-        } message: {
-            Text("Pour recevoir des notifications sur les produits qui périment bientôt, veuillez autoriser les notifications dans les réglages.")
-        }
-        .onAppear {
-            // Vérifier l'autorisation de notification lors de l'apparition de la vue
-            TestNotificationService.shared.checkNotificationSettings { authorized in
-                self.notificationAuthorized = authorized
-            }
-        }
         .sheet(isPresented: $showQuantityPopup) {
-            ZStack {
-                // Fond d'écran
-                Color(hex: "C1DDF9").edgesIgnoringSafeArea(.all)
-                
-                VStack(spacing: 30) {
-                    // Titre simple
-                    Text(selectedAction == "consumed" ? "Quantité consommée" : "Quantité jetée")
-                        .font(.custom("ChauPhilomeneOne-Regular", size: 28))
-                        .fontWeight(.bold)
-                        .foregroundColor(.black)
-                        .padding(.top, 50)
-                    
-                    // Contrôle de quantité simplifié
-                    HStack(spacing: 40) {
-                        Button(action: {
-                            if popupQuantity > 1 {
-                                popupQuantity -= 1
-                            }
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color(hex: "689FA7"))
-                                    .frame(width: 70, height: 70)
-                                
-                                Text("-")
-                                    .font(.system(size: 40, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        
-                        Text("\(popupQuantity)")
-                            .font(.system(size: 60, weight: .bold))
-                            .frame(minWidth: 80)
-                            .foregroundColor(.black)
-                        
-                        Button(action: {
-                            if popupQuantity < produit.quantite {
-                                popupQuantity += 1
-                            }
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color(hex: "689FA7"))
-                                    .frame(width: 70, height: 70)
-                                
-                                Text("+")
-                                    .font(.system(size: 40, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 30)
-                    
-                    // Quantité disponible (en petit)
-                    Text("Disponible: \(produit.quantite)")
-                        .font(.system(size: 18))
-                        .foregroundColor(.gray)
-                        .padding(.bottom, 20)
-                    
-                    // Boutons d'action
-                    HStack(spacing: 20) {
-                        Button(action: {
-                            showQuantityPopup = false
-                        }) {
-                            Text("Annuler")
-                                .font(.system(size: 22, weight: .medium))
-                                .padding(.vertical, 16)
-                                .frame(maxWidth: .infinity)
-                                .background(Color.gray.opacity(0.2))
-                                .foregroundColor(.black)
-                                .cornerRadius(20)
-                        }
-                        
-                        Button(action: {
-                            showQuantityPopup = false
-                            processAction()
-                        }) {
-                            Text("Confirmer")
-                                .font(.system(size: 22, weight: .medium))
-                                .padding(.vertical, 16)
-                                .frame(maxWidth: .infinity)
-                                .background(Color(hex: "689FA7"))
-                                .foregroundColor(.white)
-                                .cornerRadius(20)
-                        }
-                    }
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 50)
-                }
-                .padding(.horizontal, 30)
-            }
-            .presentationDetents([.medium])  // Utiliser medium au lieu d'une hauteur fixe
-            .presentationBackground(Color(hex: "C1DDF9"))  // Fond bleu clair
-            .presentationCornerRadius(25)
+            quantityPopupView
+        }
+        .actionSheet(isPresented: $showNotificationOptions) {
+            notificationActionSheet
         }
     }
-    
     
     // MARK: - Composants de vue
     
@@ -345,11 +207,97 @@ struct ProductDetailView: View {
             .foregroundColor(.gray)
     }
     
+    // Badge d'expiration avec couleur selon l'urgence
+    private var expirationBadge: some View {
+        HStack {
+            Image(systemName: expirationIcon)
+                .font(.title3)
+                .foregroundColor(expirationColor)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Expiration")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                
+                Text("Le \(produit.peremption)")
+                    .font(.headline)
+                    .foregroundColor(.black)
+                
+                Text(expirationStatus)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(expirationColor)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(expirationColor.opacity(0.1))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(expirationColor.opacity(0.3), lineWidth: 1)
+        )
+        .padding(.horizontal)
+    }
+    
+    // Section notifications
+    private var notificationSection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "bell.fill")
+                    .font(.title3)
+                    .foregroundColor(Color(hex: "156585"))
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Notifications")
+                        .font(.headline)
+                        .foregroundColor(.black)
+                    
+                    Text(notificationStatusText)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                
+                Spacer()
+                
+                Button("Options") {
+                    showNotificationOptions = true
+                }
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color(hex: "156585").opacity(0.2))
+                .foregroundColor(Color(hex: "156585"))
+                .cornerRadius(8)
+            }
+            
+            // Message de confirmation de notification envoyée
+            if notificationSent {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    
+                    Text("Notification de test envoyée !")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                    
+                    Spacer()
+                }
+                .padding(.top, 5)
+                .transition(.opacity.combined(with: .scale))
+            }
+        }
+        .padding()
+        .background(Color.white.opacity(0.7))
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+    
     // Indicateur Nutri-Score
     private var nutriScoreView: some View {
         HStack(spacing: 0) {
             ForEach(["A", "B", "C", "D", "E"], id: \.self) { score in
-                // Correction ici pour éviter l'utilisation de ? sur nutriscore
                 let isSelected = if let details = produit.productDetails,
                                   !details.nutriscore.isEmpty {
                                     details.nutriscore.uppercased() == score
@@ -359,11 +307,11 @@ struct ProductDetailView: View {
                 
                 let color: Color = {
                     switch score {
-                    case "A": return Color(hex: "4A8E38") // Vert foncé
-                    case "B": return Color(hex: "85BB2F") // Vert clair
-                    case "C": return Color(hex: "FFCC00") // Jaune
-                    case "D": return Color(hex: "EF8200") // Orange
-                    case "E": return Color(hex: "E63E11") // Rouge
+                    case "A": return Color(hex: "4A8E38")
+                    case "B": return Color(hex: "85BB2F")
+                    case "C": return Color(hex: "FFCC00")
+                    case "D": return Color(hex: "EF8200")
+                    case "E": return Color(hex: "E63E11")
                     default: return .gray
                     }
                 }()
@@ -435,68 +383,194 @@ struct ProductDetailView: View {
         .padding(.horizontal, 40)
     }
     
+    // Popup de sélection de quantité
+    private var quantityPopupView: some View {
+        ZStack {
+            Color(hex: "C1DDF9").edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 30) {
+                Text(selectedAction == "consumed" ? "Quantité consommée" : "Quantité jetée")
+                    .font(.custom("ChauPhilomeneOne-Regular", size: 28))
+                    .fontWeight(.bold)
+                    .foregroundColor(.black)
+                    .padding(.top, 50)
+                
+                HStack(spacing: 40) {
+                    Button(action: {
+                        if popupQuantity > 1 {
+                            popupQuantity -= 1
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "689FA7"))
+                                .frame(width: 70, height: 70)
+                            
+                            Text("-")
+                                .font(.system(size: 40, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    Text("\(popupQuantity)")
+                        .font(.system(size: 60, weight: .bold))
+                        .frame(minWidth: 80)
+                        .foregroundColor(.black)
+                    
+                    Button(action: {
+                        if popupQuantity < produit.quantite {
+                            popupQuantity += 1
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "689FA7"))
+                                .frame(width: 70, height: 70)
+                            
+                            Text("+")
+                                .font(.system(size: 40, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                }
+                .padding(.vertical, 30)
+                
+                Text("Disponible: \(produit.quantite)")
+                    .font(.system(size: 18))
+                    .foregroundColor(.gray)
+                    .padding(.bottom, 20)
+                
+                HStack(spacing: 20) {
+                    Button(action: {
+                        showQuantityPopup = false
+                    }) {
+                        Text("Annuler")
+                            .font(.system(size: 22, weight: .medium))
+                            .padding(.vertical, 16)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.gray.opacity(0.2))
+                            .foregroundColor(.black)
+                            .cornerRadius(20)
+                    }
+                    
+                    Button(action: {
+                        showQuantityPopup = false
+                        processAction()
+                    }) {
+                        Text("Confirmer")
+                            .font(.system(size: 22, weight: .medium))
+                            .padding(.vertical, 16)
+                            .frame(maxWidth: .infinity)
+                            .background(Color(hex: "689FA7"))
+                            .foregroundColor(.white)
+                            .cornerRadius(20)
+                    }
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 50)
+            }
+            .padding(.horizontal, 30)
+        }
+        .presentationDetents([.medium])
+        .presentationBackground(Color(hex: "C1DDF9"))
+        .presentationCornerRadius(25)
+    }
+    
+    // Action sheet pour les notifications
+    private var notificationActionSheet: ActionSheet {
+        ActionSheet(
+            title: Text("Options de notification"),
+            message: Text("Choisissez une action pour ce produit"),
+            buttons: [
+                .default(Text("Envoyer notification de test")) {
+                    sendTestNotification()
+                },
+                .default(Text("Programmer rappel personnalisé")) {
+                    scheduleCustomReminder()
+                },
+                .default(Text("Paramètres notifications")) {
+                    // Ouvrir les paramètres de notification
+                    NotificationManager.shared.openNotificationSettings()
+                },
+                .cancel(Text("Annuler"))
+            ]
+        )
+    }
+    
     // MARK: - Propriétés calculées
     
     private var produitBrand: String {
         return produit.productDetails?.brand ?? "Inconnue"
     }
     
-    // MARK: - Méthodes
-    
-    // Test de notification
-    private func testNotification() {
-        TestNotificationService.shared.checkNotificationSettings { authorized in
-            if authorized {
-                // Envoyer la notification de test
-                TestNotificationService.shared.sendTestNotification(for: produit)
-                notificationSent = true
-                
-                // Masquer le message après 5 secondes
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                    notificationSent = false
-                }
-            } else {
-                // Demander l'autorisation si ce n'est pas déjà autorisé
-                TestNotificationService.shared.requestAuthorization { granted in
-                    if granted {
-                        // Autorisation accordée, envoyer la notification
-                        TestNotificationService.shared.sendTestNotification(for: produit)
-                        notificationSent = true
-                        
-                        // Masquer le message après 5 secondes
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                            notificationSent = false
-                        }
-                    } else {
-                        // Afficher une alerte pour demander à l'utilisateur d'autoriser les notifications
-                        showingPermissionAlert = true
-                    }
-                }
-            }
+    private var expirationColor: Color {
+        switch produit.joursRestants {
+        case ...0:
+            return .red
+        case 1...3:
+            return .orange
+        case 4...7:
+            return .yellow
+        default:
+            return .green
         }
     }
     
-    // Méthode pour mettre à jour la quantité
-    private func updateQuantity() {
-        // Cette fonction sera implémentée plus tard pour appeler l'API
-        print("Mettre à jour la quantité : \(quantity)")
+    private var expirationIcon: String {
+        switch produit.joursRestants {
+        case ...0:
+            return "exclamationmark.triangle.fill"
+        case 1...3:
+            return "clock.fill"
+        case 4...7:
+            return "clock"
+        default:
+            return "checkmark.circle.fill"
+        }
     }
     
-    // Méthode pour afficher le popup pour jeter
+    private var expirationStatus: String {
+        switch produit.joursRestants {
+        case ...0:
+            return "Expiré"
+        case 1:
+            return "Expire demain"
+        case 2...3:
+            return "Expire dans \(produit.joursRestants) jours"
+        case 4...7:
+            return "Expire bientôt"
+        default:
+            return "Encore frais"
+        }
+    }
+    
+    private var notificationStatusText: String {
+        switch NotificationManager.shared.authorizationStatus {
+        case .authorized:
+            return produit.joursRestants <= 3 ? "Notifications actives" : "Aucune alerte prévue"
+        case .denied:
+            return "Notifications désactivées"
+        case .notDetermined:
+            return "Notifications non configurées"
+        default:
+            return "Statut inconnu"
+        }
+    }
+    
+    // MARK: - Méthodes
+    
     private func showDiscardPopup() {
         selectedAction = "wasted"
-        popupQuantity = 1  // Réinitialiser à 1 pour chaque nouveau popup
+        popupQuantity = 1
         showQuantityPopup = true
     }
 
-    // Méthode pour afficher le popup pour consommer
     private func showConsumePopup() {
         selectedAction = "consumed"
-        popupQuantity = 1  // Réinitialiser à 1 pour chaque nouveau popup
+        popupQuantity = 1
         showQuantityPopup = true
     }
 
-    // Méthode pour traiter l'action après sélection de la quantité
     private func processAction() {
         guard let stockId = produit.stockId else {
             errorMessage = "Erreur: identifiant de stock manquant"
@@ -504,7 +578,6 @@ struct ProductDetailView: View {
             return
         }
         
-        // Vérifier que la quantité est valide
         if popupQuantity > produit.quantite {
             errorMessage = "Erreur: Vous ne pouvez pas sélectionner plus de produits que disponibles"
             showErrorAlert = true
@@ -514,10 +587,8 @@ struct ProductDetailView: View {
         let status: ProductStatus = selectedAction == "consumed" ? .consumed : .wasted
         let finalQuantity = popupQuantity
         
-        // Fermer la vue immédiatement
         dismiss()
         
-        // Envoyer la requête en arrière-plan
         ProductConsumptionService.shared.markProductStatus(
             stockId: stockId,
             quantity: finalQuantity,
@@ -525,15 +596,24 @@ struct ProductDetailView: View {
         ) { success in
             if success {
                 print("✅ Produit marqué comme \(status.rawValue): \(finalQuantity) unités")
+                
+                // Envoyer une notification de confirmation
+                DispatchQueue.main.async {
+                    let message = status == .consumed ?
+                        "✅ \(finalQuantity) unité\(finalQuantity > 1 ? "s" : "") de \(self.produit.nom) marquée\(finalQuantity > 1 ? "s" : "") comme consommée\(finalQuantity > 1 ? "s" : "")" :
+                        "🗑️ \(finalQuantity) unité\(finalQuantity > 1 ? "s" : "") de \(self.produit.nom) marquée\(finalQuantity > 1 ? "s" : "") comme jetée\(finalQuantity > 1 ? "s" : "")"
+                    
+                    NotificationManager.shared.sendImmediateNotification(
+                        for: self.produit,
+                        customMessage: message
+                    )
+                }
             } else {
                 print("❌ Erreur lors du marquage du produit")
             }
         }
     }
     
-    
-    
-    // Méthode pour supprimer le produit
     private func deleteProduct() {
         guard let stockId = produit.stockId else {
             print("❌ Impossible de supprimer : stockId manquant")
@@ -549,7 +629,51 @@ struct ProductDetailView: View {
                 print("✅ Suppression réussie !")
                 showDeleteSuccess = true
             }
-            // En cas d'échec, l'alerte d'erreur sera affichée automatiquement par le ViewModel
+        }
+    }
+    
+    private func sendTestNotification() {
+        NotificationManager.shared.sendImmediateNotification(
+            for: produit,
+            customMessage: "🧪 Notification de test pour \(produit.nom) - Expire dans \(produit.joursRestants) jour\(produit.joursRestants > 1 ? "s" : "")"
+        )
+        
+        notificationSent = true
+        
+        // Masquer le message après 3 secondes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            withAnimation {
+                notificationSent = false
+            }
+        }
+    }
+    
+    private func scheduleCustomReminder() {
+        // Ici on pourrait implémenter une interface pour programmer un rappel personnalisé
+        // Pour l'instant, on programme un rappel dans 1 heure
+        let content = UNMutableNotificationContent()
+        content.title = "Rappel personnalisé"
+        content.body = "N'oubliez pas de vérifier \(produit.nom)"
+        content.sound = UNNotificationSound.default
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3600, repeats: false) // 1 heure
+        let request = UNNotificationRequest(
+            identifier: "custom_reminder_\(produit.id)",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            DispatchQueue.main.async {
+                if error == nil {
+                    self.notificationSent = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        withAnimation {
+                            self.notificationSent = false
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -565,5 +689,3 @@ struct Triangle: Shape {
         return path
     }
 }
-
-

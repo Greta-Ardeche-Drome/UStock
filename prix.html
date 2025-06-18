@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UStock - Offres Premium</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #C0DDF9 0%, #689FA7 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .header h1 {
+            color: #156585;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .header p {
+            color: #333;
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .offers-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 40px;
+            margin-bottom: 50px;
+        }
+        
+        .offer-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .offer-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+        
+        .offer-card.premium {
+            border: 3px solid #22C55E;
+            position: relative;
+        }
+        
+        .offer-card.premium::before {
+            content: "RECOMMANDÉ";
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background: #22C55E;
+            color: white;
+            padding: 5px 50px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            transform: rotate(45deg);
+        }
+        
+        .offer-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .offer-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #156585;
+            margin-bottom: 10px;
+        }
+        
+        .offer-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        
+        .price {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #156585;
+            margin-bottom: 10px;
+        }
+        
+        .price-period {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .features {
+            list-style: none;
+            margin: 30px 0;
+        }
+        
+        .features li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .features li::before {
+            content: "✓";
+            color: #22C55E;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            background: #22C55E;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+        
+        .cta-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #156585, #689FA7);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        
+        .cta-button:hover {
+            background: linear-gradient(135deg, #0f4a61, #5a8890);
+            transform: translateY(-2px);
+        }
+        
+        .premium .cta-button {
+            background: linear-gradient(135deg, #22C55E, #16A34A);
+        }
+        
+        .premium .cta-button:hover {
+            background: linear-gradient(135deg, #16A34A, #15803D);
+        }
+        
+        .comparison-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin-top: 50px;
+        }
+        
+        .comparison-title {
+            text-align: center;
+            font-size: 2rem;
+            color: #156585;
+            margin-bottom: 30px;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #156585;
+        }
+        
+        .check {
+            color: #22C55E;
+            font-size: 1.5rem;
+        }
+        
+        .cross {
+            color: #EF4444;
+            font-size: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .offers-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .offer-card {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .comparison-table {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Passez à UStock Premium</h1>
+            <p>Débloquez tout le potentiel de votre gestion alimentaire avec nos offres premium</p>
+        </div>
+        
+        <div class="offers-container">
+            <!-- Offre Familie Premium -->
+            <div class="offer-card">
+                <div class="offer-header">
+                    <h2 class="offer-title">Familie Premium</h2>
+                    <p class="offer-subtitle">Pour les familles qui veulent optimiser ensemble</p>
+                    <div class="price">4,99€</div>
+                    <div class="price-period">par mois</div>
+                </div>
+                
+                <ul class="features">
+                    <li>Jusqu'à 6 membres dans votre famille</li>
+                    <li>Stock partagé en temps réel</li>
+                    <li>Notifications pour toute la famille</li>
+                    <li>Listes de courses collaboratives</li>
+                    <li>Statistiques familiales détaillées</li>
+                    <li>Attribution des tâches (qui achète quoi)</li>
+                    <li>Historique des courses par membre</li>
+                    <li>Support prioritaire</li>
+                </ul>
+                
+                <button class="cta-button">Commencer l'essai gratuit</button>
+            </div>
+            
+            <!-- Offre UStock IA -->
+            <div class="offer-card premium">
+                <div class="offer-header">
+                    <h2 class="offer-title">UStock IA</h2>
+                    <p class="offer-subtitle">L'intelligence artificielle au service de votre alimentation</p>
+                    <div class="price">9,99€</div>
+                    <div class="price-period">par mois</div>
+                </div>
+                
+                <ul class="features">
+                    <li>Tout de Familie Premium inclus</li>
+                    <li>Estimation des prix en temps réel</li>
+                    <li>Suggestions de recettes personnalisées</li>
+                    <li>Optimisation automatique des courses</li>
+                    <li>Prédiction des besoins alimentaires</li>
+                    <li>Analyse nutritionnelle avancée</li>
+                    <li>Recommandations anti-gaspillage</li>
+                    <li>Planning de repas automatique</li>
+                    <li>Alertes intelligentes de réapprovisionnement</li>
+                </ul>
+                
+                <button class="cta-button">Découvrir l'IA</button>
+            </div>
+        </div>
+        
+        <!-- Section comparaison -->
+        <div class="comparison-section">
+            <h2 class="comparison-title">Comparez nos offres</h2>
+            
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Fonctionnalités</th>
+                        <th>Gratuit</th>
+                        <th>Familie Premium</th>
+                        <th>UStock IA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Scanner de produits</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Gestion inventaire personnel</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Statistiques de base</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Nombre de membres</td>
+                        <td>1</td>
+                        <td>Jusqu'à 6</td>
+                        <td>Jusqu'à 6</td>
+                    </tr>
+                    <tr>
+                        <td>Stock partagé famille</td>
+                        <td class="cross">✗</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Listes collaboratives</td>
+                        <td class="cross">✗</td>
+                        <td class="check">✓</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Estimation des prix IA</td>
+                        <td class="cross">✗</td>
+                        <td class="cross">✗</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Suggestions de recettes IA</td>
+                        <td class="cross">✗</td>
+                        <td class="cross">✗</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Planning repas automatique</td>
+                        <td class="cross">✗</td>
+                        <td class="cross">✗</td>
+                        <td class="check">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Support</td>
+                        <td>Standard</td>
+                        <td>Prioritaire</td>
+                        <td>VIP</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

@@ -37,6 +37,30 @@ class StockViewModel: ObservableObject {
         // Récupérer le token depuis UserDefaults
         self.authToken = UserDefaults.standard.string(forKey: "authToken")
         print("Token récupéré dans StockViewModel : \(String(describing: authToken))")
+        
+        // Observer les notifications de mise à jour des notifications d'expiration
+        NotificationCenter.default.publisher(for: .shouldUpdateExpirationNotifications)
+            .sink { [weak self] _ in
+                self?.updateExpirationNotifications()
+            }
+            .store(in: &cancellables)
+        
+        // Observer les actions depuis les notifications
+        NotificationCenter.default.publisher(for: .shouldNavigateToProduct)
+            .sink { [weak self] notification in
+                if let productId = notification.userInfo?["productId"] as? UUID {
+                    self?.handleNavigateToProduct(productId: productId)
+                }
+            }
+            .store(in: &cancellables)
+        
+        NotificationCenter.default.publisher(for: .shouldMarkProductConsumed)
+            .sink { [weak self] notification in
+                if let stockId = notification.userInfo?["stockId"] as? Int {
+                    self?.handleMarkProductConsumed(stockId: stockId)
+                }
+            }
+            .store(in: &cancellables)
     }
     
     func fetchStocks() {
@@ -54,6 +78,7 @@ class StockViewModel: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(token, forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30.0
         
         print("🔄 Récupération des stocks avec token: \(token)")
         
@@ -126,6 +151,10 @@ class StockViewModel: ObservableObject {
                         }
                         
                         self.stocks = produits
+                        
+                        // 🔔 Mettre à jour les notifications d'expiration après avoir récupéré les stocks
+                        self.updateExpirationNotifications()
+                        
                     } catch {
                         print("❌ Erreur décodage JSON : \(error)")
                         self.errorMessage = "Erreur lors de la récupération des produits: \(error.localizedDescription)"
@@ -157,6 +186,7 @@ class StockViewModel: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(token, forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30.0
         
         print("🗑️ Suppression du produit avec stockId: \(stockId)")
         
@@ -194,6 +224,9 @@ class StockViewModel: ObservableObject {
                         self.stocks.remove(at: index)
                     }
                     
+                    // 🔔 Mettre à jour les notifications après suppression
+                    self.updateExpirationNotifications()
+                    
                     self.successMessage = "Produit supprimé avec succès"
                     self.showSuccessMessage = true
                     completion(true)
@@ -211,4 +244,143 @@ class StockViewModel: ObservableObject {
             }
         }.resume()
     }
+    
+    // MARK: - Gestion des notifications d'expiration
+    
+    private func updateExpirationNotifications() {
+        // Vérifier que les notifications sont autorisées
+        guard NotificationManager.shared.authorizationStatus == .authorized else {
+            print("📱 Notifications non autorisées, mise à jour ignorée")
+            return
+        }
+        
+        // Vérifier les préférences utilisateur
+        let enableExpirationAlerts = UserDefaults.standard.bool(forKey: "enableExpirationAlerts")
+        guard enableExpirationAlerts else {
+            print("📱 Alertes d'expiration désactivées par l'utilisateur")
+            return
+        }
+        
+        print("🔔 Mise à jour des notifications d'expiration pour \(stocks.count) produits")
+        
+        // Filtrer les produits qui expirent dans les 3 prochains jours
+        let advanceNoticeDays = UserDefaults.standard.integer(forKey: "advanceNoticeDaysKey")
+        let maxDays = advanceNoticeDays > 0 ? advanceNoticeDays : 3
+        
+        let expiringProducts = stocks.filter { product in
+            product.joursRestants >= 0 && product.joursRestants <= maxDays
+        }
+        
+        print("🔔 \(expiringProducts.count) produits expirent dans les \(maxDays) prochains jours")
+        
+        // Programmer les notifications
+        NotificationManager.shared.scheduleExpirationNotifications(for: expiringProducts)
+        
+        // Envoyer une notification immédiate pour les produits qui expirent aujourd'hui
+        let expiringToday = stocks.filter { $0.joursRestants == 0 }
+        for product in expiringToday {
+            NotificationManager.shared.sendImmediateNotification(
+                for: product,
+                customMessage: "⚠️ \(product.nom) expire aujourd'hui ! Pensez à le consommer."
+            )
+        }
+    }
+    
+    // MARK: - Gestion des actions depuis les notifications
+    
+    private func handleNavigateToProduct(productId: UUID) {
+        print("🔔 Navigation vers le produit: \(productId)")
+        
+        // Trouver le produit dans la liste
+        if let product = stocks.first(where: { $0.id == productId }) {
+            // Poster une notification pour que la vue puisse naviguer
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .didTapNotificationForProduct,
+                    object: nil,
+                    userInfo: ["product": product]
+                )
+            }
+        }
+    }
+    
+    private func handleMarkProductConsumed(stockId: Int) {
+        print("🔔 Marquer comme consommé le produit avec stockId: \(stockId)")
+        
+        // Trouver le produit
+        guard let product = stocks.first(where: { $0.stockId == stockId }) else {
+            print("❌ Produit non trouvé pour stockId: \(stockId)")
+            return
+        }
+        
+        // Marquer comme consommé via ProductConsumptionService
+        ProductConsumptionService.shared.markProductStatus(
+            stockId: stockId,
+            quantity: 1, // Par défaut, on marque 1 unité comme consommée
+            status: .consumed
+        ) { [weak self] success in
+            DispatchQueue.main.async {
+                if success {
+                    print("✅ Produit marqué comme consommé depuis la notification")
+                    
+                    // Mettre à jour la liste locale
+                    if let index = self?.stocks.firstIndex(where: { $0.stockId == stockId }) {
+                        if self?.stocks[index].quantite == 1 {
+                            // Si c'était la dernière unité, supprimer le produit
+                            self?.stocks.remove(at: index)
+                        } else {
+                            // Sinon, diminuer la quantité
+                            self?.stocks[index] = Produit(
+                                id: product.id,
+                                nom: product.nom,
+                                peremption: product.peremption,
+                                joursRestants: product.joursRestants,
+                                quantite: product.quantite - 1,
+                                image: product.image,
+                                stockId: product.stockId,
+                                productDetails: product.productDetails
+                            )
+                        }
+                    }
+                    
+                    // Mettre à jour les notifications
+                    self?.updateExpirationNotifications()
+                    
+                    // Afficher un message de succès
+                    self?.successMessage = "Produit marqué comme consommé"
+                    self?.showSuccessMessage = true
+                    
+                    // Envoyer une notification de confirmation
+                    NotificationManager.shared.sendImmediateNotification(
+                        for: product,
+                        customMessage: "✅ \(product.nom) a été marqué comme consommé avec succès !"
+                    )
+                } else {
+                    print("❌ Échec du marquage depuis la notification")
+                    self?.errorMessage = "Erreur lors du marquage du produit"
+                    self?.showErrorAlert = true
+                }
+            }
+        }
+    }
+    
+    // MARK: - Méthodes publiques pour les notifications
+    
+    func forceUpdateNotifications() {
+        updateExpirationNotifications()
+    }
+    
+    func getExpiringProductsCount(days: Int = 3) -> Int {
+        return stocks.filter { $0.joursRestants >= 0 && $0.joursRestants <= days }.count
+    }
+    
+    func getExpiringProducts(days: Int = 3) -> [Produit] {
+        return stocks.filter { $0.joursRestants >= 0 && $0.joursRestants <= days }
+    }
+}
+
+// MARK: - Extensions pour NotificationCenter
+
+extension Notification.Name {
+    static let didTapNotificationForProduct = Notification.Name("didTapNotificationForProduct")
 }
